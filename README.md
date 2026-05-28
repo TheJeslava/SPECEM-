@@ -1,5 +1,7 @@
 # SPECEM FuseEval-lite Reproduction with Updated Open Models
 
+[中文说明](README-CN.md)
+
 This repository contains a cleaned, self-contained reproduction package for an updated SPECEM-style FuseEval-lite experiment. The active model matrix replaces the lightweight Gemma3n candidate with Xiaomi MiMo-7B-SFT and evaluates four single-model baselines plus a local SpecEM-4 prefused ensemble.
 
 ## What is Included
@@ -82,6 +84,7 @@ The verified runner first builds a bilingual validation subset, runs the quality
 DATA.md                # dataset and included-output documentation
 LICENSE                # project license
 README.md              # reproduction overview, results, and usage instructions
+README-CN.md           # Chinese reproduction overview and usage instructions
 requirements.txt       # minimal Python package requirements
 site/                  # static project website
 specem_repro/
