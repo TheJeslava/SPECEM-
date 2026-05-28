@@ -1,0 +1,23 @@
+{
+  "sacrebleu": 5.8598,
+  "rouge_1": 32.5354,
+  "rouge_2": 15.3965,
+  "rouge_l": 26.649,
+  "rouge_lsum": 27.6675,
+  "num_samples": 400,
+  "model_id": "specem_4_prefused",
+  "source_models": [
+    "gemma3_12b_it",
+    "mimo_7b_sft",
+    "qwen3_5_9b",
+    "ministral3_8b_instruct_2512"
+  ],
+  "segment_tokens": 48,
+  "eta": 0.35,
+  "hit_counts": {
+    "mimo_7b_sft": 228,
+    "qwen3_5_9b": 83,
+    "ministral3_8b_instruct_2512": 60,
+    "gemma3_12b_it": 29
+  }
+}

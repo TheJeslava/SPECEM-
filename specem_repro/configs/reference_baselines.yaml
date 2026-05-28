@@ -1,0 +1,33 @@
+source_pdf: "../SpecFuse.pdf"
+reference_title: "SpecEM: Training-Free LLM Ensembling via Iterative Drafting, Verification, and Online Feedback"
+reference_version_observed: "arXiv:2412.07380v3, 2026-03-06"
+
+original_models_7b_9b:
+  - Llama-3-8B-Instruct
+  - Mistral-7B-Instruct-v0.3
+  - Qwen2-7B-Instruct
+  - GLM-4-9B-Instruct
+  - Gemma-2-9B-Instruct
+
+original_large_models:
+  - Llama-3-70B-Instruct
+  - Qwen2-72B-Instruct
+  - Qwen2.5-32B-Instruct
+  - Mistral-24B-Instruct-2501
+
+table1_fuseeval_key_results:
+  english:
+    best_base: "Mistral-7B-Instruct-v0.3: ROUGE-L 25.57, BLEU 4.82, BERTScore 71.88, GPT4-Rank 7.62"
+    specem: "ROUGE-1 31.19, ROUGE-2 14.40, ROUGE-L 28.86, BLEU 5.81, BARTScore -2.88, BERTScore 73.34, GPT4-Rank 3.98"
+  chinese:
+    best_base: "GLM-4-9B-Instruct/Mistral/Qwen2 vary by metric; Qwen2-72B GPT4-Rank 3.63 as large baseline"
+    specem: "ROUGE-1 32.15, ROUGE-2 9.94, ROUGE-L 24.00, BLEU 4.75, BARTScore -4.29, BERTScore 71.03, GPT4-Rank 3.25"
+
+table2_reasoning_key_results:
+  specem_all: "MMLU 73.01, ARC-C 89.08, GSM8K 77.41, IFEval prompt-avg 62.11, instruct-avg 71.56"
+  note: "IFEval all-model ensemble underperforms best base on instruct-avg by -0.70; the source study notes weaker models can hurt."
+
+table4_ablation_key_results:
+  online_feedback_gain: "SpecEM beats w/o online feedback by +6.64 average win-rate points over EN/CN FuseEval."
+  score_reward_gain: "SpecEM beats score-based reward by +3.80 average win-rate points."
+  top_win_gain: "SpecEM beats top-win selection by +5.75 average win-rate points."

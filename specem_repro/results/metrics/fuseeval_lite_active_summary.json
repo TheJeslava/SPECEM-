@@ -1,0 +1,131 @@
+{
+  "created_at": "2026-05-27 UTC",
+  "scope": "FuseEval-lite 400 samples, 200 English + 200 Chinese, active four-model matrix with MiMo",
+  "results": [
+    {
+      "label": "Gemma3-12B-it",
+      "model_id": "gemma3_12b_it",
+      "raw": "specem_repro/results/raw/fuseeval_lite_gemma3_12b_it.jsonl",
+      "metrics": "specem_repro/results/metrics/fuseeval_lite_gemma3_12b_it.json",
+      "quality_gate": "specem_repro/results/metrics/fuseeval_lite_gemma3_12b_it.quality_gate.json",
+      "num_samples": 400,
+      "languages": {
+        "en": 200,
+        "zh": 200
+      },
+      "sacrebleu": 6.4067,
+      "rouge_1": 24.4178,
+      "rouge_2": 8.1359,
+      "rouge_l": 21.6062,
+      "rouge_lsum": 22.7684,
+      "thinking_rate": 0.0,
+      "empty_rate": 0.0,
+      "token_cap_rate": 0.0175,
+      "passed_quality_gate": true,
+      "extra": {}
+    },
+    {
+      "label": "MiMo-7B-SFT",
+      "model_id": "mimo_7b_sft",
+      "raw": "specem_repro/results/raw/fuseeval_lite_mimo_7b_sft.jsonl",
+      "metrics": "specem_repro/results/metrics/fuseeval_lite_mimo_7b_sft.json",
+      "quality_gate": "specem_repro/results/metrics/fuseeval_lite_mimo_7b_sft.quality_gate.json",
+      "num_samples": 400,
+      "languages": {
+        "en": 200,
+        "zh": 200
+      },
+      "sacrebleu": 6.6759,
+      "rouge_1": 30.2109,
+      "rouge_2": 14.1462,
+      "rouge_l": 24.7771,
+      "rouge_lsum": 26.484,
+      "thinking_rate": 0.0,
+      "empty_rate": 0.0,
+      "token_cap_rate": 0.3275,
+      "passed_quality_gate": true,
+      "extra": {}
+    },
+    {
+      "label": "Qwen3.5-9B",
+      "model_id": "qwen3_5_9b",
+      "raw": "specem_repro/results/raw/fuseeval_lite_qwen3_5_9b.jsonl",
+      "metrics": "specem_repro/results/metrics/fuseeval_lite_qwen3_5_9b.json",
+      "quality_gate": "specem_repro/results/metrics/fuseeval_lite_qwen3_5_9b.quality_gate.json",
+      "num_samples": 400,
+      "languages": {
+        "en": 200,
+        "zh": 200
+      },
+      "sacrebleu": 10.0405,
+      "rouge_1": 27.73,
+      "rouge_2": 9.9698,
+      "rouge_l": 23.6687,
+      "rouge_lsum": 24.4965,
+      "thinking_rate": 0.0,
+      "empty_rate": 0.0,
+      "token_cap_rate": 0.0375,
+      "passed_quality_gate": true,
+      "extra": {}
+    },
+    {
+      "label": "Ministral3-8B-Instruct-2512",
+      "model_id": "ministral3_8b_instruct_2512",
+      "raw": "specem_repro/results/raw/fuseeval_lite_ministral3_8b_instruct_2512.jsonl",
+      "metrics": "specem_repro/results/metrics/fuseeval_lite_ministral3_8b_instruct_2512.json",
+      "quality_gate": "specem_repro/results/metrics/fuseeval_lite_ministral3_8b_instruct_2512.quality_gate.json",
+      "num_samples": 400,
+      "languages": {
+        "en": 200,
+        "zh": 200
+      },
+      "sacrebleu": 1.9502,
+      "rouge_1": 29.1905,
+      "rouge_2": 12.2483,
+      "rouge_l": 23.359,
+      "rouge_lsum": 26.4643,
+      "thinking_rate": 0.0,
+      "empty_rate": 0.0,
+      "token_cap_rate": 0.7625,
+      "passed_quality_gate": true,
+      "extra": {}
+    },
+    {
+      "label": "SpecEM-4-prefused",
+      "model_id": "specem_4_prefused",
+      "raw": "specem_repro/results/raw/fuseeval_lite_specem_4_prefused.jsonl",
+      "metrics": "specem_repro/results/metrics/fuseeval_lite_specem_4_prefused.json",
+      "quality_gate": "specem_repro/results/metrics/fuseeval_lite_specem_4_prefused.quality_gate.json",
+      "num_samples": 400,
+      "languages": {
+        "en": 200,
+        "zh": 200
+      },
+      "sacrebleu": 5.8598,
+      "rouge_1": 32.5354,
+      "rouge_2": 15.3965,
+      "rouge_l": 26.649,
+      "rouge_lsum": 27.6675,
+      "thinking_rate": 0.0,
+      "empty_rate": 0.0,
+      "token_cap_rate": 0.0,
+      "passed_quality_gate": true,
+      "extra": {
+        "hit_counts": {
+          "mimo_7b_sft": 228,
+          "qwen3_5_9b": 83,
+          "ministral3_8b_instruct_2512": 60,
+          "gemma3_12b_it": 29
+        },
+        "source_models": [
+          "gemma3_12b_it",
+          "mimo_7b_sft",
+          "qwen3_5_9b",
+          "ministral3_8b_instruct_2512"
+        ],
+        "segment_tokens": 48,
+        "eta": 0.35
+      }
+    }
+  ]
+}

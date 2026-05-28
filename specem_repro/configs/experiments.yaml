@@ -1,0 +1,72 @@
+approval_required: true
+random_seeds: [1, 2, 3]
+generation:
+  do_sample: true
+  temperature: 0.6
+  top_p: 0.9
+  segment_lengths: [5, 10, 15]
+  default_segment_length: 10
+  max_new_tokens_open_generation: 512
+
+datasets:
+  smoke:
+    samples_per_split: 10
+    purpose: "Verify deployment, output schema, and metrics."
+  fuseeval_lite:
+    english_sources: ["databricks/databricks-dolly-15k", "tatsu-lab/alpaca"]
+    chinese_sources: ["BAAI/COIG"]
+    samples_per_language: 200
+    purpose: "Updated open-generation reproduction comparable to the source study Table 1."
+  ifeval:
+    source: "google/IFEval"
+    samples: "official"
+    purpose: "Instruction-following reproduction comparable to the source study Table 2."
+  lm_eval_reasoning_lite:
+    tasks: ["mmlu_pro_lite", "arc_challenge", "gsm8k"]
+    samples_per_task: 200
+    purpose: "Reasoning/common-sense check with newer MMLU-Pro plus original ARC-C/GSM8K anchors."
+  alpacaeval_2:
+    source: "tatsu-lab/alpaca_eval"
+    samples: "official_or_200_sample_budget"
+    purpose: "Preference win-rate check if judge API is approved."
+
+methods:
+  single_model:
+    include: ["gemma3_12b_it", "mimo_7b_sft", "qwen3_5_9b"]
+  specem:
+    main: ["gemma3_12b_it", "mimo_7b_sft", "qwen3_5_9b", "ministral3_8b_instruct_2512"]
+    extended_optional: ["gemma3_12b_it", "mimo_7b_sft", "qwen3_5_9b", "ministral3_8b_instruct_2512"]
+    efficient_optional: ["mimo_7b_sft", "qwen3_5_9b", "ministral3_8b_instruct_2512"]
+  ablations:
+    - "without_online_feedback"
+    - "score_based_reward"
+    - "top_win_selection"
+  baselines:
+    practical_local: ["MBR", "majority_voting_for_choice_tasks"]
+    optional_expensive: ["PairRank", "GenFuse", "MOA", "AlpacaEval_LC"]
+
+metrics:
+  open_generation_reference:
+    original: ["BLEU", "ROUGE-1", "ROUGE-2", "ROUGE-L", "BERTScore", "BARTScore"]
+    updated: ["sacreBLEU", "ROUGE-Lsum", "BERTScore-DeBERTa", "COMETKiwi_or_BLEURT_if_available"]
+  open_generation_preference:
+    original: ["GPT4-Rank"]
+    updated: ["pairwise_win_rate_with_current_strong_judge", "AlpacaEval_2_LC_win_rate"]
+  reasoning:
+    original: ["accuracy", "exact_match"]
+    updated: ["MMLU-Pro accuracy", "GSM8K exact_match_with_answer_extraction", "pass_at_1_optional"]
+  instruction_following:
+    original: ["IFEval prompt/instruction strict/loose"]
+    updated: ["official IFEval strict/loose plus per-constraint breakdown"]
+  efficiency:
+    original: ["first_token_latency", "total_generation_time"]
+    updated: ["tokens_per_second", "peak_vram_gb", "model_load_time"]
+
+estimated_runtime:
+  smoke_10_samples: "0.5-1.5 hours including first model downloads"
+  fuseeval_lite_200_en_200_zh_5_models_single_seed: "Single-model baselines are expected to take multiple GPU hours per model on one RTX 4090; Qwen3.5 pilot speed suggests roughly 2-4 hours/model at max_new_tokens=256 and longer at 512."
+  ifeval_official_3_models_3_seeds: "30-60 GPU hours"
+  reasoning_lite_600_total_items: "12-30 GPU hours"
+  ablations_on_fuseeval_lite: "30-60 additional GPU hours"
+  optional_alpacaeval_judge_200: "2-6 GPU hours plus API judge cost"
+  full_original_scale: "Not recommended locally; likely several hundred GPU hours and/or H200/A100 multi-GPU resources."

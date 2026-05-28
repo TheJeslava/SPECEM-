@@ -1,0 +1,14 @@
+{
+  "sacrebleu": 1.9502,
+  "rouge_1": 29.1905,
+  "rouge_2": 12.2483,
+  "rouge_l": 23.359,
+  "rouge_lsum": 26.4643,
+  "num_samples": 400,
+  "model_id": "ministral3_8b_instruct_2512",
+  "hf_id": "mistralai/Ministral-3-8B-Instruct-2512-BF16",
+  "avg_elapsed_s": 10.201011899709702,
+  "avg_tokens_per_s": 22.046008032736722,
+  "max_peak_vram_gb": 6.952333450317383,
+  "hf_home": "${HF_HOME:-~/.cache/huggingface}"
+}

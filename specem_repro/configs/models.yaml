@@ -1,0 +1,68 @@
+hardware_profile:
+  detected_gpu: "NVIDIA GeForce RTX 4090"
+  gpu_memory_gb: 24
+  strategy: "single_gpu_quantized_or_sequential"
+  note: "Original paper used A100/H200 multi-GPU runs. This local setup cannot host multiple 7B-14B bf16 models concurrently without quantization/offload."
+
+updated_base_models:
+  - id: qwen3_5_9b
+    hf_id: Qwen/Qwen3.5-9B
+    replaces: Qwen2-7B-Instruct
+    role: ["draft", "verify"]
+    precision: "4bit_or_8bit"
+    loader_type: "image_text_to_text_adapter_needed"
+    rationale: "Latest verified Qwen3.5 small/medium checkpoint found on Hugging Face. It upgrades the prior Qwen3-8B proposal and reports stronger MMLU-Pro/IFEval-style performance, but needs a multimodal/text adapter because it is exposed through image-text-to-text APIs."
+  - id: ministral3_8b_instruct_2512
+    hf_id: mistralai/Ministral-3-8B-Instruct-2512-BF16
+    replaces: Mistral-7B-Instruct-v0.3
+    role: ["draft", "verify"]
+    precision: "4bit_or_8bit"
+    loader_type: "image_text_to_text_adapter_needed"
+    rationale: "Newer Mistral-family local model. The model card states it fits in 24GB VRAM in BF16 and under 12GB when quantized, so it is suitable for this RTX 4090 project."
+  - id: gemma3_12b_it
+    hf_id: google/gemma-3-12b-it
+    replaces: Gemma-2-9B-Instruct
+    role: ["draft", "verify"]
+    precision: "4bit"
+    loader_type: "image_text_to_text_adapter_needed"
+    rationale: "Size-comparable modern Gemma instruction replacement for Gemma-2-9B; retained as the stronger Gemma option, but it is near the local 4090 memory limit."
+  - id: mimo_7b_sft
+    hf_id: XiaomiMiMo/MiMo-7B-SFT
+    replaces: Llama-3-8B-Instruct
+    role: ["draft", "verify"]
+    precision: "4bit"
+    loader_type: "causal_lm_remote_code_empty_system"
+    rationale: "Open MIT-licensed 7B Xiaomi MiMo SFT checkpoint. It is used as a stronger, research-accessible 7B-class comparator; the model card recommends an empty system prompt, so the runner applies task constraints in the user message."
+
+optional_large_or_api_models:
+  - id: qwen3_5_4b
+    hf_id: Qwen/Qwen3.5-4B
+    reason: "Smaller Qwen3.5 fallback if Qwen3.5-9B is too slow or too memory-heavy locally."
+  - id: qwen3_5_30b_a3b
+    hf_id: Qwen/Qwen3.5-30B-A3B
+    reason: "Potential sparse/MoE Qwen3.5 scale-up candidate if model availability and loader support are confirmed."
+  - id: mistral_small_3_1_24b_instruct
+    hf_id: mistralai/Mistral-Small-3.1-24B-Instruct-2503
+    reason: "Modern replacement for Mistral-Small-24B, but not practical locally without heavier quantization/offload."
+  - id: ministral3_14b_instruct_2512
+    hf_id: mistralai/Ministral-3-14B-Instruct-2512-BF16
+    reason: "Stronger modern Mistral-family model; possible with 4-bit/offload but not default on a single 4090."
+  - id: llama4_scout_17b_16e_instruct
+    hf_id: meta-llama/Llama-4-Scout-17B-16E-Instruct
+    reason: "Newest Llama-family candidate, but it has 109B total parameters and is not a default local 4090 model."
+  - id: llama3_1_8b_instruct
+    hf_id: meta-llama/Llama-3.1-8B-Instruct
+    reason: "Direct newer Llama replacement, but skipped in the current run because local access remained gated while MiMo is openly accessible."
+  - id: gpt_4_1_or_gpt_5_judge
+    provider: openai
+    reason: "Optional pairwise judge for updated GPT-rank/win-rate metrics; requires API key and budget."
+
+excluded_model_families:
+  - family: GLM
+    decision: "excluded_from_scope_a"
+    reason: "Current GLM-5.1 release is a 754B/744B-class MoE model and no official small GLM-5.1 variant suitable for a single RTX 4090 was found. Older GLM-4.x small/medium variants are not considered sufficiently updated for the requested latest-model reproduction."
+
+model_loading_requirements:
+  transformers_min: "4.53.0"
+  recommended_quantization: "bitsandbytes 4-bit NF4 for 8B-14B models"
+  implementation_change_needed: "Official loader assumes one GPU per model and AutoModelForCausalLM. Updated project supports sequential scoring/loading, 4-bit loading, ImageTextToText checkpoints, and MiMo's empty-system chat-template requirement."

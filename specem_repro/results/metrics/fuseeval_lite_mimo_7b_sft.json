@@ -1,0 +1,14 @@
+{
+  "sacrebleu": 6.6759,
+  "rouge_1": 30.2109,
+  "rouge_2": 14.1462,
+  "rouge_l": 24.7771,
+  "rouge_lsum": 26.484,
+  "num_samples": 400,
+  "model_id": "mimo_7b_sft",
+  "hf_id": "XiaomiMiMo/MiMo-7B-SFT",
+  "avg_elapsed_s": 4.1534504330158235,
+  "avg_tokens_per_s": 21.81001175237815,
+  "max_peak_vram_gb": 6.457168102264404,
+  "hf_home": "${HF_HOME:-~/.cache/huggingface}"
+}

@@ -1,0 +1,8 @@
+torch
+transformers
+accelerate
+bitsandbytes
+pyyaml
+sacrebleu
+rouge-score
+huggingface-hub

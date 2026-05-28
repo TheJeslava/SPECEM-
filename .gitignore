@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets and local caches
+.env
+*.env
+*.token
+token
+.cache/
+hf_cache/
+models--*/
+
+# Model checkpoints
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf

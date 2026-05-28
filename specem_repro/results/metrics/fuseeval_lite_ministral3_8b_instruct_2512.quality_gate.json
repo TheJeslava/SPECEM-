@@ -1,0 +1,16 @@
+{
+  "input": "specem_repro/results/raw/fuseeval_lite_ministral3_8b_instruct_2512.jsonl",
+  "total": 400,
+  "thinking_count": 0,
+  "thinking_rate": 0.0,
+  "empty_count": 0,
+  "empty_rate": 0.0,
+  "token_cap_count": 305,
+  "token_cap_rate": 0.7625,
+  "languages": {
+    "en": 200,
+    "zh": 200
+  },
+  "passed": true,
+  "failures": []
+}

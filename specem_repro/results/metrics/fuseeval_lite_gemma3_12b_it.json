@@ -1,0 +1,14 @@
+{
+  "sacrebleu": 6.4067,
+  "rouge_1": 24.4178,
+  "rouge_2": 8.1359,
+  "rouge_l": 21.6062,
+  "rouge_lsum": 22.7684,
+  "num_samples": 400,
+  "model_id": "gemma3_12b_it",
+  "hf_id": "google/gemma-3-12b-it",
+  "avg_elapsed_s": 2.234954044818878,
+  "avg_tokens_per_s": 11.758550223207239,
+  "max_peak_vram_gb": 9.29736042022705,
+  "hf_home": "${HF_HOME:-~/.cache/huggingface}"
+}
