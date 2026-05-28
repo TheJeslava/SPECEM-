@@ -1,0 +1,136 @@
+\documentclass[11pt]{ctexart}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\title{基于更新开源模型的 SPECEM 风格 FuseEval-lite 单卡复现实验}
+\author{Reproduction package}
+\date{2026 年 5 月}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本文报告了一项 SPECEM 风格开放生成实验的单卡复现。实验使用 400 条双语 FuseEval-lite 样本，其中英文 200 条、中文 200 条。更新后的模型矩阵包括 Qwen3.5-9B、Ministral-3-8B-Instruct-2512、Gemma-3-12B-it 和 Xiaomi MiMo-7B-SFT；原先考虑的轻量 Gemma3n 路线被移除。由于实验硬件仅为单张 RTX 4090，无法同时加载四个现代 7B--14B 级模型，本文实现并评估了一个本地 \emph{prefused} SpecEM-4 近似版本：该版本读取四个已验证单模型输出，在不访问参考答案的前提下进行候选片段融合。实验显示，模型适配正确性是现代大模型复现实验中的一阶变量：Qwen3.5 在早期运行中表现异常差，原因并非模型能力不足，而是 reasoning 泄漏和 token cap 饱和；修复 loader、chat template、thinking suppression 和 EOS/attention 相关细节后，Qwen3.5 成为 sacreBLEU 最高的系统。最终结果中，SpecEM-4-prefused 在所有 ROUGE 指标上超过单模型基线，而 Qwen3.5 保持最高 sacreBLEU。进一步指标审计表明，这一 BLEU/ROUGE 分化不是列映射错误或指标实现错误，而是输出形态与融合目标共同作用的结果：Qwen3.5 输出更短、更贴近参考答案局部 n-gram；prefused 集成输出更长、更偏共识覆盖，因此提升 ROUGE，但稀释 BLEU precision。
+\end{abstract}
+
+\section{研究动机}
+SPECEM 式集成生成的吸引力在于，它允许异构语言模型在推理阶段协作，而不需要训练新的融合模型。然而，当模型矩阵被更新到新一代 checkpoint 后，忠实复现会变得明显复杂。现代模型在 loader 类、chat template、停止符行为、reasoning 通道约定和授权访问方式上均存在差异。如果这些外围接口没有被正确适配，测评结果很容易反映工程错误而非模型能力。
+
+本复现的目标有两个。第一，在统一的双语 FuseEval-lite 协议下建立一组干净的单模型基线。第二，在单张消费级 GPU 的现实约束下，评估一个透明、可复现的 SPECEM 风格本地集成近似，并分析其相对于单模型和原论文结论的差异。
+
+\section{实验设置}
+\paragraph{数据集。}
+实验使用 FuseEval-lite 子集，共 400 条样本，其中英文 200 条、中文 200 条。处理后的精确数据文件位于 \texttt{specem\_repro/data/processed/fuseeval\_lite.json}。该子集被随工程发布，以保证指标可以在不重新抽样的情况下复算。
+
+\paragraph{模型矩阵。}
+表~\ref{tab:models} 给出了最终模型矩阵。Gemma3n 被移出主动实验配置，因为它更偏效率部署，能力层级不适合作为该比较中的强基线。MiMo-7B-SFT 被选为替代模型，因为它开放可获取、采用 MIT 许可证，并且处于本地 7B 级部署范围。
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+家族 / 角色 & 模型 & 适配说明 \\
+\midrule
+Qwen & Qwen/Qwen3.5-9B & image-text-to-text loader；关闭 thinking \\
+Mistral & mistralai/Ministral-3-8B-Instruct-2512-BF16 & 完成基线实验 \\
+Gemma & google/gemma-3-12b-it & 需要保留 EOS list 语义 \\
+MiMo & XiaomiMiMo/MiMo-7B-SFT & 需要 reasoning 通道适配 \\
+Ensemble & SpecEM-4-prefused & 四模型候选片段融合 \\
+\bottomrule
+\end{tabular}
+\caption{更新后的主动模型矩阵。}
+\label{tab:models}
+\end{table}
+
+\paragraph{硬件和执行策略。}
+实验在单张 NVIDIA RTX 4090 上完成，采用顺序加载和 4-bit 量化。模型权重只在即将运行对应模型时下载，运行完成后清理缓存。这个策略一方面适配有限磁盘空间，另一方面避免将 checkpoint 缓存误发布到复现工程中。
+
+\section{模型适配与质量控制}
+每个模型在完整 400 样本实验前，先运行 20 条双语验证子集。只有验证集质量门控通过后，才启动完整生成。质量门控检查行数、英文/中文覆盖、空输出率、reasoning 泄漏率和最大 token 饱和率。
+
+本实验中有三个适配问题对结论影响显著。第一，Qwen3.5 初始运行会输出大量 hidden-reasoning 风格文本，并频繁触达 token 上限。使用正确的 image-text loader 路径、显式关闭 thinking，并保证 attention mask 和生成切片处理正确后，该问题被消除。第二，Gemma-3-12B-it 暴露的是 EOS list；如果将其错误地当作单个 EOS 标量处理，模型会在看似已经结束的回答后继续生成到 token cap。保留 EOS list 后该问题被修复。第三，MiMo-7B-SFT 带有 reasoning-tuned 行为，初始输出包含 \texttt{<think>} 内容。MiMo 专用 prompt adapter 通过预关闭 reasoning 通道并约束回答区域，将 reasoning 泄漏降为零。
+
+这些现象说明，在现代模型复现中，chat template、processor class、EOS 语义、reasoning 通道控制不应被视为次要工程细节，而应被视为实验配置的一部分。
+
+\section{Prefused SpecEM-4 方法}
+原论文中的 SPECEM 假设多个模型可并行加载，并在推理过程中执行 segment-level drafting 与 verification。在单卡约束下，本文实现的是一个 prefused 近似版本。设 $M$ 表示四个已验证模型集合，$y_m$ 表示模型 $m$ 对某一 prompt 的完整输出。每个输出先被切分为固定长度文本片段。在每个片段位置，候选片段依据三类信号打分：与其他模型候选片段的词面重叠、轻量长度正则，以及对无效输出标记的惩罚。每个样本内部维护一个 Hedge 风格的权重向量，并根据片段得分在线更新。融合过程不使用参考答案。
+
+该方法不声称等同于原论文的并行 SPECEM。它是一个透明、可复现、适配单卡资源的近似，用于检验无监督跨模型共识是否能改善开放生成参考指标。
+
+这一 prefused 版本与原论文完整流程存在多项关键差异。原论文在推理过程中执行在线 draft-verify-feedback，使用 A100/H200 上的 bfloat16 多 GPU 环境，生成配置为 \texttt{do\_sample=True}、\texttt{temperature=0.6}、\texttt{top\_p=0.9}，并报告三次独立运行平均结果。本文流程使用预生成完整回答、4-bit 顺序加载、单次确定性运行和无监督 peer-overlap router。因此，本实验中的正向或负向指标变化应被解释为单卡 prefused 近似的性质，而不是对原论文完整 SPECEM 算法的直接复现或反驳。
+
+\section{实验结果}
+表~\ref{tab:results} 报告最终指标。所有系统均通过质量门控。
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrr}
+\toprule
+系统 & BLEU & R-1 & R-2 & R-L & R-Lsum \\
+\midrule
+Gemma3-12B-it & 6.4067 & 24.4178 & 8.1359 & 21.6062 & 22.7684 \\
+MiMo-7B-SFT & 6.6759 & 30.2109 & 14.1462 & 24.7771 & 26.4840 \\
+Qwen3.5-9B & 10.0405 & 27.7300 & 9.9698 & 23.6687 & 24.4965 \\
+Ministral3-8B & 1.9502 & 29.1905 & 12.2483 & 23.3590 & 26.4643 \\
+SpecEM-4-prefused & 5.8598 & 32.5354 & 15.3965 & 26.6490 & 27.6675 \\
+\bottomrule
+\end{tabular}
+\caption{FuseEval-lite 400 样本结果。BLEU 为 sacreBLEU；R-1/R-2/R-L 为 ROUGE F1。}
+\label{tab:results}
+\end{table}
+
+\paragraph{质量门控。}
+Gemma3-12B、Qwen3.5 和 SpecEM-4 的 token-cap 率较低或为零。MiMo 通过质量门控，但 token-cap 率为 32.75\%，说明即使 reasoning 被抑制后，它仍倾向于输出较长回答。Ministral 的 token-cap 率为 76.25\%，解释其 ROUGE 分数时应考虑这一点：较长输出可能带来更高覆盖，但也可能引入冗余。
+
+\paragraph{集成行为。}
+prefused 集成确实使用了所有四个模型。按 dominant segment source 统计，MiMo 在 228 条样本中占主导，Qwen3.5 在 83 条中占主导，Ministral3 在 60 条中占主导，Gemma3 在 29 条中占主导。这说明最终系统不是某个单模型的简单代理。SpecEM-4-prefused 在 ROUGE-1、ROUGE-2、ROUGE-L 和 ROUGE-Lsum 上超过所有单模型基线，表明跨模型共识有助于恢复参考答案中更广泛的内容，尤其是在异构双语指令数据中。
+
+但该集成没有在 sacreBLEU 上超过 Qwen3.5。这说明当前共识融合扩大了内容覆盖，却牺牲了 BLEU 所依赖的局部连续 n-gram 精度。
+
+\paragraph{BLEU 诊断审计。}
+由于 BLEU 结果与原论文中的 headline trend 不完全一致，我们进一步审计了指标管线和输出形态。指标实现对同一组 prediction/reference pair 计算 \texttt{sacrebleu.corpus\_bleu(predictions, [references])}，ROUGE 也使用同一组样本。因此，Qwen3.5 的高 BLEU 不能由预测列和参考列写错、或者集成意外泄漏参考答案来解释。
+
+表~\ref{tab:bleu-diagnostics} 给出 Qwen3.5 与 SpecEM-4-prefused 的 corpus BLEU 分解。Qwen3.5 在局部 precision 上明显更强：其 4-gram precision 为 5.03，而 SpecEM-4-prefused 为 2.31。Qwen3.5 的系统/参考长度比也更接近 1。SpecEM-4-prefused 因为长度超过参考答案，不受 brevity penalty 惩罚；但额外长度降低了 n-gram precision。
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrrr}
+\toprule
+系统 & BLEU & BP & 长度比 & 1-gram & 2-gram & 4-gram \\
+\midrule
+Qwen3.5-9B & 10.0405 & 0.9076 & 0.9116 & 32.74 & 12.63 & 5.03 \\
+SpecEM-4-prefused & 5.8598 & 1.0000 & 1.7429 & 20.73 & 6.95 & 2.31 \\
+\bottomrule
+\end{tabular}
+\caption{Qwen3.5 与 prefused 集成的 corpus sacreBLEU 诊断。长度比为 sacreBLEU 的 system/reference length ratio；n-gram 列为 sacreBLEU precisions。}
+\label{tab:bleu-diagnostics}
+\end{table}
+
+定性观察与该分解一致。Qwen3.5 经常生成简洁直接的答案或紧凑列表，这类输出更容易在表面形式上与 FuseEval 参考答案对齐。BLEU 奖励这种精确局部措辞。prefused 集成则由候选输出之间的无监督一致性驱动：router 选择与其他模型片段重叠度高的 48-token segment，再将获胜片段拼接。这种机制倾向于保留广泛共识内容，因此提升 ROUGE；但它也可能引入解释性前缀、重复框架和跨模型风格切换。这些变化在语义上可能合理，却会损害 BLEU 依赖的连续 n-gram precision。
+
+\section{讨论}
+本实验的第一个方法论结论是：模型适配正确性可以压过模型名义能力。Qwen3.5 在修复前看起来异常弱，修复 reasoning 泄漏和 token-cap 问题后成为 BLEU 最强系统。Gemma 的 EOS-list 行为也曾导致虚假的 token 饱和。上述结果说明，现代模型比较必须把 chat template、EOS 语义、processor class 和 reasoning-channel control 纳入实验配置，而不能只报告模型名称。
+
+第二个结论是：集成效果强烈依赖指标。ROUGE 奖励 prefused 集成，因为它选择与多个候选模型重叠的片段，倾向于保存广泛共识内容。BLEU 则偏向 Qwen3.5，因为其输出更短、更接近参考答案局部措辞。用单一词面指标概括集成质量是不充分的。
+
+与原论文结论的差异应被理解为方法与测量条件共同改变的结果，而不是简单代码错误。原论文中，SPECEM 在英文 FuseEval 上相对 7B--9B 单模型提高 BLEU，在中文 FuseEval 上也具有竞争力；但该结论来自完整 online draft-verify-feedback 算法、原始模型矩阵、bfloat16 多 GPU 执行、随机采样生成和三次运行平均。本文复现改变了所有这些条件。此外，原论文说明中文 BLEU 和 ROUGE 在计算前使用 Jieba 分词；当前复现的 sacreBLEU 采用默认 corpus-level tokenization，双语合并结果不能直接与原论文中文协议等同。
+
+因此，最严谨的表述是：在本单卡离线 prefused 复现中，Qwen3.5 是 sacreBLEU 最强系统，SpecEM-4-prefused 是 ROUGE 最强系统。该结果不支持“原始 SPECEM 方法无法提升 BLEU”的结论；它支持的是更窄的结论：当前单卡 prefused 近似在更新模型矩阵和当前评测设置下未能保留原论文中的 BLEU 优势。另一方面，也不应将该现象简单归为无意义 artifact。输出审计显示了清晰机制：prefused 方法优化 peer-consensus coverage，而非参考答案 n-gram precision；BLEU 会惩罚由此产生的冗长化和风格混合。
+
+\section{局限性}
+本复现仅覆盖 FuseEval-lite 和单次运行，没有做多 seed 平均。prefused 集成不是原论文的多 GPU 在线 SPECEM，而是使用预生成候选的单卡兼容近似。评估包含词面指标和质量门控，但没有加入人工偏好评测、BERTScore、BARTScore 或 GPT-style ranking。当前 BLEU 采用 sacreBLEU 默认 tokenization，不应直接与原论文使用 Jieba 分词后的中文 BLEU/ROUGE 协议比较。虽然数据子集已随工程发布以保证可复算，但更广泛结论仍需在完整 benchmark suite 上验证。
+
+\paragraph{建议的后续检查。}
+更严格的后续实验应分别报告英文和中文指标，按照 Jieba 分词协议重算中文 BLEU/ROUGE，使用原论文的随机解码设置重跑生成，并比较当前 peer-overlap router 与 BLEU-aware 或 learned verifier 版本。这些检查可以回答两个问题：第一，Qwen3.5 的 BLEU 优势在 tokenization 和 decoding 对齐后是否仍然存在；第二，更接近原论文的 SPECEM 实现是否能恢复原论文中的 BLEU 趋势。
+
+\section{可复现性材料}
+发布工程包含处理后的数据子集、最终 raw outputs、metric files、quality gates、复算指标所需脚本，以及中英文论文 \LaTeX{} 源文件。工程中不包含认证凭据、模型权重、checkpoint 或本地模型缓存。
+
+\end{document}

@@ -10,8 +10,9 @@
 - 本次实验实际使用的 FuseEval-lite 子集：400 条样本，其中英文 200 条、中文 200 条。
 - 最终 JSONL 模型输出与指标文件。
 - 静态项目网站：`site/index.html`。
+- 中英文 LaTeX 论文报告：`paper-zh.tex` 与 `paper-en.tex`。
 
-仓库不包含模型权重、Hugging Face 缓存、本地认证凭据、notebook checkpoint、失败的中间运行结果或 LaTeX 报告文件。
+仓库不包含模型权重、Hugging Face 缓存、本地认证凭据、notebook checkpoint 或失败的中间运行结果。
 
 ## 模型矩阵
 
@@ -90,6 +91,8 @@ DATA.md                # 数据子集和输出文件说明
 LICENSE                # 项目许可证
 README.md              # 英文复现说明
 README-CN.md           # 中文复现说明
+paper-en.tex           # 英文学术风格复现实验报告
+paper-zh.tex           # 中文学术风格复现实验报告
 requirements.txt       # Python 依赖列表
 site/                  # 静态项目网站
 specem_repro/
@@ -103,4 +106,4 @@ specem_repro/
 
 ## 隐私和发布边界
 
-发布前已检查仓库内容，排除了认证凭据、本地机器路径、模型权重、缓存目录、Python 字节码、notebook checkpoint 和失败的中间实验结果。论文 LaTeX 报告文件按要求保留在本地，不随 GitHub 仓库发布。
+发布前已检查仓库内容，排除了认证凭据、本地机器路径、模型权重、缓存目录、Python 字节码、notebook checkpoint 和失败的中间实验结果。中英文论文 LaTeX 报告随仓库发布，用于记录实验流程、结果与局限性。

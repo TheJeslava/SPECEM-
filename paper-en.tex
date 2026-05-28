@@ -1,0 +1,118 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{xcolor}
+\title{A Single-GPU Reproduction of SPECEM-style FuseEval-lite Ensembling with Updated Open Models}
+\author{Reproduction package}
+\date{May 2026}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We report a cleaned reproduction of a SPECEM-style open-generation experiment on a bilingual FuseEval-lite subset with 400 examples, evenly split between English and Chinese. The updated model matrix contains Qwen3.5-9B, Ministral-3-8B-Instruct-2512, Gemma-3-12B-it, and Xiaomi MiMo-7B-SFT, replacing the previously considered lightweight Gemma3n path. Because the available hardware was a single RTX 4090 and could not host four modern models concurrently, we implement and evaluate a local \emph{prefused} SpecEM-4 variant that fuses verified single-model outputs without using reference answers. The reproduction shows that adapter correctness is a first-order experimental variable: an initially poor Qwen3.5 result was traced to reasoning leakage and token-cap failure, and corrected model-specific generation adapters substantially changed the outcome. The final prefused ensemble improves ROUGE-based overlap over all individual models, while Qwen3.5 retains the strongest sacreBLEU. A follow-up metric audit indicates that this BLEU/ROUGE divergence is not a column-mapping or metric-implementation error: Qwen3.5 produces shorter outputs with stronger local n-gram precision, whereas the prefused ensemble produces longer consensus-oriented answers that improve coverage but dilute BLEU precision.
+\end{abstract}
+
+\section{Motivation}
+SPECEM-style ensemble generation is attractive because it allows heterogeneous language models to collaborate at generation time. However, faithful reproduction becomes nontrivial when the model matrix is modernized: recent checkpoints differ in loader class, chat template, stop-token behavior, reasoning-channel conventions, and gated access requirements. The goal of this reproduction is therefore twofold: first, to obtain a clean single-model baseline matrix under a common bilingual FuseEval-lite protocol; second, to evaluate a transparent local ensemble approximation under the practical constraints of a single consumer GPU.
+
+\section{Experimental Setup}
+\paragraph{Dataset.} We use a FuseEval-lite subset with 400 samples: 200 English examples and 200 Chinese examples. The exact processed file is included at \texttt{specem\_repro/data/processed/fuseeval\_lite.json}.
+
+\paragraph{Models.} The active matrix is shown in Table~\ref{tab:models}. Gemma3n was removed from the active design because it is an efficiency-oriented model whose capability level was not appropriate for the intended comparison. MiMo-7B-SFT was selected as the replacement because it is openly accessible, MIT licensed, and in the same local 7B-class deployment regime.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+Family / role & Model & Notes \\
+\midrule
+Qwen & Qwen/Qwen3.5-9B & image-text-to-text loader; thinking disabled \\
+Mistral & mistralai/Ministral-3-8B-Instruct-2512-BF16 & completed baseline \\
+Gemma & google/gemma-3-12b-it & EOS list handling required \\
+MiMo & XiaomiMiMo/MiMo-7B-SFT & reasoning-channel adapter required \\
+Ensemble & SpecEM-4-prefused & four-model candidate fusion \\
+\bottomrule
+\end{tabular}
+\caption{Updated active model matrix.}
+\label{tab:models}
+\end{table}
+
+\paragraph{Hardware and execution.} The experiments were run on a single NVIDIA RTX 4090 with sequential model loading and 4-bit quantization. Model checkpoints were downloaded only immediately before each run and deleted afterward. This policy is important for reproducibility on small disks and for preventing accidental publication of checkpoint caches.
+
+\section{Adapter and Quality-Control Procedure}
+Each model was first evaluated on a 20-sample bilingual validation subset. The full 400-sample run was launched only after the validation quality gate passed. The quality gate checks row count, English/Chinese coverage, empty output rate, reasoning leakage, and maximum-token saturation.
+
+Three adapter issues were experimentally important. First, Qwen3.5 initially produced widespread hidden-reasoning style text and saturated the token limit; using the corrected image-text loader path, explicit thinking suppression, and correct attention-mask propagation eliminated the issue. Second, Gemma-3-12B-it exposes an EOS list; treating EOS as a scalar caused apparently short answers to continue until the token cap. Preserving the EOS list fixed this. Third, MiMo-7B-SFT is reasoning-tuned and initially emitted \texttt{<think>} content. A MiMo-specific prompt adapter pre-closes the reasoning channel and constrains generation to the answer region, reducing reasoning leakage to zero.
+
+\section{Prefused SpecEM-4 Method}
+The original SPECEM implementation assumes concurrently loaded models and segment-level verification on multi-GPU hardware. Under single-GPU constraints, we implemented a prefused variant. Let $M$ denote the four verified models and $y_m$ the full output from model $m$ for a prompt. Each output is split into fixed-size text segments. At each segment position, candidates are scored by lexical overlap with peer candidates, a mild brevity regularizer, and penalties for invalid output markers. A per-sample Hedge-style weight vector is updated online from the segment scores. Importantly, the reference answer is never used in the fusion decision.
+
+This method is not claimed to be identical to the original parallel SPECEM algorithm. It is a transparent, reproducible single-GPU approximation designed to test whether unsupervised cross-model consensus can improve open-generation reference metrics.
+
+Several implementation choices make the prefused variant especially different from the source study's full SPECEM procedure. The source study performs segment-level drafting and verification during inference with concurrently loaded models, uses bfloat16 precision on A100/H200 hardware, samples with \texttt{do\_sample=True}, \texttt{temperature=0.6}, and \texttt{top\_p=0.9}, and reports averages over three independent runs. Our local pipeline uses pre-generated full responses, 4-bit sequential loading, one deterministic run, and an unsupervised peer-overlap router. Therefore, negative or positive metric movements in this reproduction should be interpreted as properties of the single-GPU prefused approximation, not as a direct replication or refutation of the full SPECEM algorithm.
+
+\section{Results}
+Table~\ref{tab:results} reports the final metrics. All rows passed quality gates.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrr}
+\toprule
+System & BLEU & R-1 & R-2 & R-L & R-Lsum \\
+\midrule
+Gemma3-12B-it & 6.4067 & 24.4178 & 8.1359 & 21.6062 & 22.7684 \\
+MiMo-7B-SFT & 6.6759 & 30.2109 & 14.1462 & 24.7771 & 26.4840 \\
+Qwen3.5-9B & 10.0405 & 27.7300 & 9.9698 & 23.6687 & 24.4965 \\
+Ministral3-8B & 1.9502 & 29.1905 & 12.2483 & 23.3590 & 26.4643 \\
+SpecEM-4-prefused & 5.8598 & 32.5354 & 15.3965 & 26.6490 & 27.6675 \\
+\bottomrule
+\end{tabular}
+\caption{FuseEval-lite results on 400 examples. BLEU denotes sacreBLEU. R-1/R-2/R-L are ROUGE F1 scores.}
+\label{tab:results}
+\end{table}
+
+\paragraph{Quality gates.} Gemma3-12B, Qwen3.5, and SpecEM-4 show low or zero token-cap rates. MiMo passes the quality gate but retains a higher cap rate of 32.75\%, indicating a tendency toward longer answers even after reasoning suppression. Ministral's cap rate is 76.25\%, which should be considered when interpreting its ROUGE scores.
+
+\paragraph{Ensemble behavior.} The prefused ensemble uses all four models: MiMo contributes the dominant segment source in 228 samples, Qwen3.5 in 83, Ministral3 in 60, and Gemma3 in 29. The distribution indicates that the final system is not a single-model proxy. The ensemble improves ROUGE-1, ROUGE-2, ROUGE-L, and ROUGE-Lsum over every individual baseline. This suggests that cross-model consensus is useful for recovering reference-overlapping content, especially in heterogeneous bilingual instruction data. However, the ensemble does not improve sacreBLEU over Qwen3.5, which implies that consensus fusion may broaden coverage at the expense of exact local n-gram precision.
+
+\paragraph{BLEU diagnostic audit.} Because the BLEU result differs from the source study's headline trend, we audited the metric pipeline and the output geometry. The metric implementation computes \texttt{sacrebleu.corpus\_bleu(predictions, [references])} on the same prediction/reference pairs used for ROUGE, so the high Qwen3.5 BLEU is not explained by a swapped column or an accidentally reference-leaking ensemble. Table~\ref{tab:bleu-diagnostics} shows the corpus BLEU decomposition. Qwen3.5 has the strongest local precision profile among the two systems under comparison: its 4-gram precision is 5.03, compared with 2.31 for SpecEM-4-prefused. It also has a corpus length ratio closer to one. SpecEM-4-prefused receives no brevity penalty because it is longer than the references, but the additional length lowers n-gram precision.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrrr}
+\toprule
+System & BLEU & BP & Len. ratio & 1-gram & 2-gram & 4-gram \\
+\midrule
+Qwen3.5-9B & 10.0405 & 0.9076 & 0.9116 & 32.74 & 12.63 & 5.03 \\
+SpecEM-4-prefused & 5.8598 & 1.0000 & 1.7429 & 20.73 & 6.95 & 2.31 \\
+\bottomrule
+\end{tabular}
+\caption{Corpus sacreBLEU diagnostics for Qwen3.5 and the prefused ensemble. ``Len. ratio'' is sacreBLEU's system/reference length ratio; n-gram columns are sacreBLEU precisions.}
+\label{tab:bleu-diagnostics}
+\end{table}
+
+The qualitative pattern matches the numerical decomposition. Qwen3.5 often emits concise direct answers or compact lists whose surface forms align with FuseEval references. BLEU rewards such exact local phrasing. The prefused ensemble, by contrast, is driven by unsupervised agreement among candidate outputs. Its router selects 48-token segments that overlap with peer candidates and then concatenates winning segments. This process tends to preserve broadly agreed content and thus raises ROUGE, but it can also introduce explanatory prefixes, duplicated framing, and cross-model style changes. Those changes are semantically plausible yet harmful to BLEU's contiguous n-gram precision.
+
+\section{Discussion}
+The main methodological conclusion is that model-adapter correctness can dominate nominal model capability. Qwen3.5 looked anomalously weak before reasoning leakage and token-cap errors were fixed; after correction it became the best BLEU system. Similarly, Gemma's EOS-list behavior caused false token saturation until explicitly handled. These cases demonstrate that modern model comparisons must treat chat templates, EOS semantics, processor classes, and reasoning-channel controls as part of the experimental configuration rather than incidental engineering details.
+
+The results also show a metric-dependent ensemble effect. ROUGE rewards the prefused ensemble because it selects segments that overlap with multiple candidate models and therefore tends to preserve broadly agreed content. BLEU, in contrast, remains strongest for Qwen3.5, whose outputs may align more tightly with reference phrasing. This divergence cautions against summarizing ensemble quality using only one lexical metric.
+
+The discrepancy with the source study is therefore best understood as a combination of method and measurement rather than a simple implementation bug. In the source study, SPECEM improves BLEU over the 7B--9B base models on English FuseEval and is competitive on Chinese FuseEval, but that result comes from the full online draft-verify-feedback algorithm, the original model matrix, bfloat16 multi-GPU execution, stochastic decoding, and three-run averaging. This reproduction changes all of those conditions. It also uses default sacreBLEU tokenization for the bilingual corpus, while the source study reports that Chinese BLEU and ROUGE are computed after Jieba word segmentation. Under these local conditions, the observed conclusion is narrower: Qwen3.5 is the strongest sacreBLEU system in this run, while SpecEM-4-prefused is the strongest ROUGE system.
+
+This distinction matters for how the result should be written. It would be misleading to state that the original SPECEM method fails to improve BLEU. The supported claim is that our single-GPU prefused approximation does not preserve the BLEU advantage under the updated model matrix and current evaluation settings. Conversely, it would also be misleading to hide the result as a mere artifact. The output audit shows a coherent mechanism: the prefused method optimizes peer-consensus coverage, not reference n-gram precision, and BLEU penalizes the resulting verbosity and style mixing.
+
+\section{Limitations}
+The reproduction is intentionally limited to FuseEval-lite and a single seed. The prefused ensemble is not the original multi-GPU online SPECEM implementation; it is a single-GPU-compatible approximation using pre-generated candidates. The evaluation uses lexical metrics and quality gates but does not include human preference judgments, BERTScore, BARTScore, or GPT-style ranking. The current BLEU computation uses sacreBLEU's default corpus-level tokenization and should not be treated as directly comparable to the source study's Chinese BLEU protocol, which applies Jieba segmentation before BLEU/ROUGE calculation. Finally, the dataset subset is included for exact reproducibility, but broader conclusions should be validated on the full benchmark suite.
+
+\paragraph{Recommended follow-up checks.} A stricter reproduction should separately report English and Chinese scores, recompute Chinese BLEU/ROUGE under Jieba segmentation, rerun generation with the source study's stochastic decoding settings, and compare the prefused router against a BLEU-aware or learned verifier variant. These checks would determine whether Qwen3.5's BLEU advantage persists after aligning the tokenization and decoding protocol, and whether a closer SPECEM implementation recovers the original paper's BLEU trend.
+
+\section{Reproducibility Artifacts}
+The repository includes the processed dataset, final raw outputs, metric files, quality gates, and all scripts required to recompute the reported metrics. No authentication tokens, account names, passwords, checkpoints, or local model caches are included.
+
+\end{document}

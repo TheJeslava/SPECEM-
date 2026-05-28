@@ -10,8 +10,9 @@ This repository contains a cleaned, self-contained reproduction package for an u
 - The exact FuseEval-lite subset used in the experiment: 400 samples, 200 English and 200 Chinese.
 - All final JSONL model outputs and metric files.
 - A static project page in `site/index.html`.
+- Bilingual LaTeX reports: `paper-en.tex` and `paper-zh.tex`.
 
-No model checkpoints, Hugging Face tokens, local cache files, passwords, notebook checkpoints, failed intermediate runs, or LaTeX report files are included.
+No model checkpoints, Hugging Face tokens, local cache files, passwords, notebook checkpoints, or failed intermediate runs are included.
 
 ## Active Models
 
@@ -85,6 +86,8 @@ DATA.md                # dataset and included-output documentation
 LICENSE                # project license
 README.md              # reproduction overview, results, and usage instructions
 README-CN.md           # Chinese reproduction overview and usage instructions
+paper-en.tex           # English academic-style reproduction report
+paper-zh.tex           # Chinese academic-style reproduction report
 requirements.txt       # minimal Python package requirements
 site/                  # static project website
 specem_repro/
